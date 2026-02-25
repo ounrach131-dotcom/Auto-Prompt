@@ -81,10 +81,132 @@
             }
         }
 
-        async function generatePrompt(base64Data, mimeType) {
+        // --- Client-side Compression Engines to prevent Payload limit errors ---
+
+        function compressImage(file, maxDim = 1024) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        let { width, height } = img;
+                        if (width > maxDim || height > maxDim) {
+                            if (width > height) {
+                                height = Math.round((height * maxDim) / width);
+                                width = maxDim;
+                            } else {
+                                width = Math.round((width * maxDim) / height);
+                                height = maxDim;
+                            }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                        resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function extractVideoFrame(file, maxDim = 1024) {
+            return new Promise((resolve, reject) => {
+                const video = document.createElement('video');
+                video.setAttribute('playsinline', '');
+                video.muted = true;
+                const url = URL.createObjectURL(file);
+                
+                video.onloadeddata = () => {
+                    // Seek to 1 second in, or halfway if it's a short clip
+                    video.currentTime = Math.min(1, video.duration > 0 ? video.duration / 2 : 0);
+                };
+
+                video.onseeked = () => {
+                    try {
+                        let { videoWidth: width, videoHeight: height } = video;
+                        if (width > maxDim || height > maxDim) {
+                            if (width > height) {
+                                height = Math.round((height * maxDim) / width);
+                                width = maxDim;
+                            } else {
+                                width = Math.round((width * maxDim) / height);
+                                height = maxDim;
+                            }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width || 640;
+                        canvas.height = height || 360;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                        URL.revokeObjectURL(url);
+                        resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+                    } catch (e) {
+                        reject(e);
+                    }
+                };
+
+                video.onerror = () => {
+                    URL.revokeObjectURL(url);
+                    reject(new Error("Failed to load video"));
+                };
+
+                video.src = url;
+                video.load();
+            });
+        }
+
+        // ----------------------------------------------------------------------
+
+        async function processFile(file) {
+            dropZone.classList.add('hidden');
+            previewContainer.classList.remove('hidden');
+            resetBtn.classList.remove('hidden');
+            
+            // Show loader immediately while compressing/extracting
             loader.classList.remove('hidden');
             resultCard.classList.add('hidden');
-            
+
+            try {
+                let base64Data, mimeType;
+
+                if (file.type.startsWith('video/')) {
+                    const previewUrl = URL.createObjectURL(file);
+                    mediaPreview.innerHTML = `<video src="${previewUrl}" class="w-full h-full object-cover" autoPlay muted loop playsinline></video>`;
+                    
+                    // Extract a single tiny frame to send to AI
+                    const frameData = await extractVideoFrame(file);
+                    base64Data = frameData.base64;
+                    mimeType = frameData.mimeType;
+                } else if (file.type.startsWith('image/')) {
+                    const previewUrl = URL.createObjectURL(file);
+                    mediaPreview.innerHTML = `<img src="${previewUrl}" class="w-full h-full object-cover">`;
+                    
+                    // Compress image before sending
+                    const compressedData = await compressImage(file);
+                    base64Data = compressedData.base64;
+                    mimeType = compressedData.mimeType;
+                } else {
+                    throw new Error("Unsupported file type");
+                }
+
+                // File is now super small and safe to send
+                generatePrompt(base64Data, mimeType);
+            } catch (err) {
+                console.error("Compression Error:", err);
+                promptText.textContent = "Error: Could not process media file format.";
+                resultCard.classList.remove('hidden');
+                loader.classList.add('hidden');
+            }
+        }
+
+        async function generatePrompt(base64Data, mimeType) {
             try {
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
                 
@@ -118,45 +240,6 @@
             }
         }
 
-        function processFile(file) {
-            // Check file size (limit to 5MB to avoid base64 payload issues)
-            const MAX_FILE_SIZE_MB = 5;
-            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-                dropZone.classList.add('hidden');
-                previewContainer.classList.remove('hidden');
-                resetBtn.classList.remove('hidden');
-                
-                mediaPreview.innerHTML = `
-                    <div class="w-full h-full flex flex-col items-center justify-center bg-red-50 text-red-600 p-6 text-center">
-                        <svg class="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                        <span class="font-bold">File Too Large</span>
-                        <span class="text-sm mt-1">Please use a file under ${MAX_FILE_SIZE_MB}MB.</span>
-                    </div>`;
-                promptText.textContent = "Error: File exceeds the 5MB size limit. The API cannot process base64 payloads larger than this.";
-                resultCard.classList.remove('hidden');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const url = e.target.result;
-                const base64 = url.split(',')[1];
-                
-                dropZone.classList.add('hidden');
-                previewContainer.classList.remove('hidden');
-                resetBtn.classList.remove('hidden');
-                
-                if (file.type.startsWith('video')) {
-                    mediaPreview.innerHTML = `<video src="${url}" class="w-full h-full object-cover" autoPlay muted loop></video>`;
-                } else {
-                    mediaPreview.innerHTML = `<img src="${url}" class="w-full h-full object-cover">`;
-                }
-                
-                generatePrompt(base64, file.type);
-            };
-            reader.readAsDataURL(file);
-        }
-
         // Event Listeners
         dropZone.onclick = () => fileInput.click();
         fileInput.onchange = (e) => e.target.files[0] && processFile(e.target.files[0]);
@@ -173,6 +256,7 @@
             dropZone.classList.remove('hidden');
             previewContainer.classList.add('hidden');
             resetBtn.classList.add('hidden');
+            resultCard.classList.add('hidden');
             mediaPreview.innerHTML = '';
             promptText.textContent = '';
             fileInput.value = '';
