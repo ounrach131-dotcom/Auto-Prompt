@@ -1,48 +1,134 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoPrompt Standalone</title>
+    <title>AutoPrompt PRO</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#151e2e', 950: '#0b0f19' }
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body class="bg-white text-black font-sans p-4 md:p-8 max-w-xl mx-auto">
+<body class="bg-slate-950 text-slate-200 font-sans p-4 md:p-8 max-w-3xl mx-auto min-h-screen selection:bg-indigo-500/30">
     <header class="flex items-center justify-between mb-8">
-        <div class="flex items-center gap-2">
-            <!-- Zap Icon -->
-            <svg class="w-5 h-5 fill-black" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            <h1 class="text-lg font-bold">AutoPrompt</h1>
+        <div class="flex items-center gap-3">
+            <!-- Pro Zap Icon with Gradient -->
+            <div class="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg shadow-lg shadow-indigo-500/20">
+                <svg class="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </div>
+            <h1 class="text-xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">AutoPrompt <span class="text-indigo-400">PRO</span></h1>
         </div>
-        <button id="resetBtn" class="hidden text-xs font-bold text-gray-400 hover:text-black uppercase tracking-tighter">Reset</button>
+        <button id="resetBtn" class="hidden text-xs font-bold text-slate-500 hover:text-white transition-colors uppercase tracking-widest px-3 py-1.5 rounded-md hover:bg-slate-800">Reset Workspace</button>
     </header>
 
     <main class="space-y-6">
-        <!-- Upload/Drop Zone -->
-        <div id="dropZone" class="aspect-video rounded-xl border-2 border-dashed border-gray-100 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors">
-            <div class="flex gap-3 mb-2">
-                <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        <!-- AI Controls (Pre-generation) -->
+        <div id="controls" class="grid grid-cols-2 gap-4 animate-fade-in">
+            <div class="space-y-1.5">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Visual Style</label>
+                <select id="styleSelect" class="w-full bg-slate-900 border border-slate-800 text-sm rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer">
+                    <option value="Hyper-realistic Cinematic Masterpiece">Cinematic Realism</option>
+                    <option value="High-end 3D Render (Unreal Engine 5, Octane)">3D Render (UE5)</option>
+                    <option value="Studio Ghibli / High-budget Anime">Premium Anime</option>
+                    <option value="Gritty, Handheld Documentary Film">Gritty Documentary</option>
+                    <option value="Stylized Cyberpunk / Neon Noir">Cyberpunk / Noir</option>
+                </select>
             </div>
-            <p class="text-xs font-bold text-gray-400 uppercase tracking-tight mb-1">Give me a file to create a video</p>
-            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">(Or press Ctrl+V to paste)</p>
+            <div class="space-y-1.5">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Motion Dynamics</label>
+                <select id="motionSelect" class="w-full bg-slate-900 border border-slate-800 text-sm rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer">
+                    <option value="Slow, fluid, sweeping cinematic motion">Slow & Sweeping</option>
+                    <option value="Fast-paced, kinetic, dynamic tracking, high energy">Fast & Kinetic</option>
+                    <option value="Subtle micro-movements, locked-off tripod, atmospheric">Subtle & Atmospheric</option>
+                    <option value="Chaotic handheld, extreme shake, intense">Handheld Chaotic</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Upload/Drop Zone -->
+        <div id="dropZone" class="aspect-[21/9] rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/50 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all group overflow-hidden relative">
+            <div class="absolute inset-0 bg-gradient-to-b from-transparent to-slate-900/50 pointer-events-none"></div>
+            <div class="flex gap-4 mb-4 relative z-10">
+                <div class="p-3 bg-slate-800 rounded-full group-hover:bg-indigo-500/20 group-hover:text-indigo-400 transition-colors text-slate-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <div class="p-3 bg-slate-800 rounded-full group-hover:bg-purple-500/20 group-hover:text-purple-400 transition-colors text-slate-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                </div>
+            </div>
+            <h3 class="text-sm font-bold text-white mb-1 relative z-10">Upload Media to Analyze</h3>
+            <p class="text-[11px] font-medium text-slate-500 uppercase tracking-widest relative z-10">Drag & Drop or Press <kbd class="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300">Ctrl+V</kbd></p>
             <input type="file" id="fileInput" accept="image/*,video/*" class="hidden">
         </div>
 
-        <!-- Preview & Result Area -->
-        <div id="previewContainer" class="hidden space-y-4">
-            <div class="relative aspect-video rounded-xl overflow-hidden bg-gray-100">
+        <!-- Preview & Dashboard Area -->
+        <div id="previewContainer" class="hidden space-y-6">
+            <!-- Visual Preview -->
+            <div class="relative aspect-video rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-2xl">
                 <div id="mediaPreview" class="w-full h-full"></div>
-                <!-- Fast Loader -->
-                <div id="loader" class="hidden absolute inset-0 bg-white/40 backdrop-blur-[2px] flex items-center justify-center">
-                    <div class="text-[10px] font-black tracking-[0.2em] animate-pulse">GENERATING...</div>
+                <!-- Pro Loader -->
+                <div id="loader" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-20">
+                    <div class="w-12 h-12 border-4 border-slate-800 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
+                    <div class="text-[10px] font-black tracking-[0.3em] text-indigo-400 animate-pulse">ANALYZING DIMENSIONS...</div>
                 </div>
             </div>
-            <div id="resultCard" class="hidden p-5 bg-gray-50 rounded-xl border border-gray-100">
-                <p id="promptText" class="text-sm leading-relaxed mb-4"></p>
-                <button id="copyBtn" class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-black transition-colors">
-                    <span>Copy</span>
-                </button>
+
+            <!-- Error Banner -->
+            <div id="errorBanner" class="hidden p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm"></div>
+
+            <!-- Pro Dashboard -->
+            <div id="resultCard" class="hidden space-y-4">
+                <!-- Master Prompt -->
+                <div class="p-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl relative group">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]"></div>
+                        <h2 class="text-xs font-black tracking-widest text-slate-300 uppercase">Master Prompt</h2>
+                    </div>
+                    <p id="promptText" class="text-base leading-relaxed text-white font-medium"></p>
+                    
+                    <button id="copyBtn" class="mt-6 w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 active:scale-[0.98]">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                        <span>Copy Full Prompt</span>
+                    </button>
+                </div>
+
+                <!-- Technical Breakdown Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Camera -->
+                    <div class="p-4 bg-slate-850 border border-slate-800 rounded-xl">
+                        <div class="flex items-center gap-2 mb-2 text-slate-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <span class="text-[10px] font-bold uppercase tracking-widest">Camera & Light</span>
+                        </div>
+                        <p id="cameraText" class="text-xs text-slate-300 leading-relaxed"></p>
+                    </div>
+                    <!-- Motion -->
+                    <div class="p-4 bg-slate-850 border border-slate-800 rounded-xl">
+                        <div class="flex items-center gap-2 mb-2 text-slate-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            <span class="text-[10px] font-bold uppercase tracking-widest">Motion Profile</span>
+                        </div>
+                        <p id="motionText" class="text-xs text-slate-300 leading-relaxed"></p>
+                    </div>
+                    <!-- Negative -->
+                    <div class="p-4 bg-slate-850 border border-slate-800 rounded-xl">
+                        <div class="flex items-center gap-2 mb-2 text-slate-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <span class="text-[10px] font-bold uppercase tracking-widest">Negative Tags</span>
+                        </div>
+                        <p id="negativeText" class="text-xs text-slate-300 leading-relaxed"></p>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -50,19 +136,30 @@
     <script>
         // DOM Elements
         const dropZone = document.getElementById('dropZone');
+        const controls = document.getElementById('controls');
         const fileInput = document.getElementById('fileInput');
         const previewContainer = document.getElementById('previewContainer');
         const mediaPreview = document.getElementById('mediaPreview');
         const loader = document.getElementById('loader');
         const resultCard = document.getElementById('resultCard');
-        const promptText = document.getElementById('promptText');
-        const copyBtn = document.getElementById('copyBtn');
+        const errorBanner = document.getElementById('errorBanner');
         const resetBtn = document.getElementById('resetBtn');
+        
+        // Output Elements
+        const promptText = document.getElementById('promptText');
+        const cameraText = document.getElementById('cameraText');
+        const motionText = document.getElementById('motionText');
+        const negativeText = document.getElementById('negativeText');
+        const copyBtn = document.getElementById('copyBtn');
 
-        // Note: The execution environment provides the key at runtime dynamically here.
+        // Inputs
+        const styleSelect = document.getElementById('styleSelect');
+        const motionSelect = document.getElementById('motionSelect');
+
+        // API Setup
         const apiKey = ""; 
 
-        // Exponential backoff fetch function
+        // Exponential backoff fetch function with precise error handling
         async function fetchWithRetry(url, options) {
             const delays = [1000, 2000, 4000, 8000, 16000];
             for (let i = 0; i < delays.length; i++) {
@@ -70,19 +167,20 @@
                     const response = await fetch(url, options);
                     if (response.ok) return response;
                     
-                    if (i === delays.length - 1) {
-                        throw new Error(`HTTP Error: ${response.status} - ${response.statusText}`);
+                    const errText = await response.text();
+                    if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+                        throw new Error(`API Error ${response.status}: ${errText}`);
                     }
+                    if (i === delays.length - 1) throw new Error(`HTTP Error: ${response.status} - ${errText}`);
                 } catch (err) {
+                    if (err.message.includes('API Error')) throw err;
                     if (i === delays.length - 1) throw err;
                 }
-                // Wait for the specified delay before retrying
                 await new Promise(resolve => setTimeout(resolve, delays[i]));
             }
         }
 
-        // --- Client-side Compression Engines to prevent Payload limit errors ---
-
+        // --- Client-side Compression Engines ---
         function compressImage(file, maxDim = 1024) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -91,74 +189,46 @@
                     img.onload = () => {
                         let { width, height } = img;
                         if (width > maxDim || height > maxDim) {
-                            if (width > height) {
-                                height = Math.round((height * maxDim) / width);
-                                width = maxDim;
-                            } else {
-                                width = Math.round((width * maxDim) / height);
-                                height = maxDim;
-                            }
+                            if (width > height) { height = Math.round((height * maxDim) / width); width = maxDim; } 
+                            else { width = Math.round((width * maxDim) / height); height = maxDim; }
                         }
                         const canvas = document.createElement('canvas');
-                        canvas.width = width;
-                        canvas.height = height;
+                        canvas.width = width; canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                        resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+                        const dataUrl = canvas.toDataURL('image/png', 1.0);
+                        resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/png' });
                     };
-                    img.onerror = reject;
-                    img.src = e.target.result;
+                    img.onerror = reject; img.src = e.target.result;
                 };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
+                reader.onerror = reject; reader.readAsDataURL(file);
             });
         }
 
         function extractVideoFrame(file, maxDim = 1024) {
             return new Promise((resolve, reject) => {
                 const video = document.createElement('video');
-                video.setAttribute('playsinline', '');
-                video.muted = true;
+                video.setAttribute('playsinline', ''); video.muted = true;
                 const url = URL.createObjectURL(file);
-                
-                video.onloadeddata = () => {
-                    // Seek to 1 second in, or halfway if it's a short clip
-                    video.currentTime = Math.min(1, video.duration > 0 ? video.duration / 2 : 0);
-                };
-
+                video.onloadeddata = () => { video.currentTime = Math.min(1, video.duration > 0 ? video.duration / 2 : 0); };
                 video.onseeked = () => {
                     try {
                         let { videoWidth: width, videoHeight: height } = video;
                         if (width > maxDim || height > maxDim) {
-                            if (width > height) {
-                                height = Math.round((height * maxDim) / width);
-                                width = maxDim;
-                            } else {
-                                width = Math.round((width * maxDim) / height);
-                                height = maxDim;
-                            }
+                            if (width > height) { height = Math.round((height * maxDim) / width); width = maxDim; } 
+                            else { width = Math.round((width * maxDim) / height); height = maxDim; }
                         }
                         const canvas = document.createElement('canvas');
-                        canvas.width = width || 640;
-                        canvas.height = height || 360;
+                        canvas.width = width || 640; canvas.height = height || 360;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                        const dataUrl = canvas.toDataURL('image/png', 1.0);
                         URL.revokeObjectURL(url);
-                        resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
-                    } catch (e) {
-                        reject(e);
-                    }
+                        resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/png' });
+                    } catch (e) { reject(e); }
                 };
-
-                video.onerror = () => {
-                    URL.revokeObjectURL(url);
-                    reject(new Error("Failed to load video"));
-                };
-
-                video.src = url;
-                video.load();
+                video.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Failed to load video")); };
+                video.src = url; video.load();
             });
         }
 
@@ -166,42 +236,34 @@
 
         async function processFile(file) {
             dropZone.classList.add('hidden');
+            controls.classList.add('hidden');
             previewContainer.classList.remove('hidden');
             resetBtn.classList.remove('hidden');
+            errorBanner.classList.add('hidden');
             
-            // Show loader immediately while compressing/extracting
             loader.classList.remove('hidden');
             resultCard.classList.add('hidden');
 
             try {
                 let base64Data, mimeType;
-
                 if (file.type.startsWith('video/')) {
                     const previewUrl = URL.createObjectURL(file);
                     mediaPreview.innerHTML = `<video src="${previewUrl}" class="w-full h-full object-cover" autoPlay muted loop playsinline></video>`;
-                    
-                    // Extract a single tiny frame to send to AI
                     const frameData = await extractVideoFrame(file);
-                    base64Data = frameData.base64;
-                    mimeType = frameData.mimeType;
+                    base64Data = frameData.base64; mimeType = frameData.mimeType;
                 } else if (file.type.startsWith('image/')) {
                     const previewUrl = URL.createObjectURL(file);
                     mediaPreview.innerHTML = `<img src="${previewUrl}" class="w-full h-full object-cover">`;
-                    
-                    // Compress image before sending
                     const compressedData = await compressImage(file);
-                    base64Data = compressedData.base64;
-                    mimeType = compressedData.mimeType;
+                    base64Data = compressedData.base64; mimeType = compressedData.mimeType;
                 } else {
                     throw new Error("Unsupported file type");
                 }
-
-                // File is now super small and safe to send
                 generatePrompt(base64Data, mimeType);
             } catch (err) {
                 console.error("Compression Error:", err);
-                promptText.textContent = "Error: Could not process media file format.";
-                resultCard.classList.remove('hidden');
+                errorBanner.textContent = "Error processing media. Please try a standard PNG, JPG, or MP4 file.";
+                errorBanner.classList.remove('hidden');
                 loader.classList.add('hidden');
             }
         }
@@ -210,14 +272,31 @@
             try {
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
                 
+                const style = styleSelect.value;
+                const motion = motionSelect.value;
+
                 const payload = {
                     contents: [{
                         role: "user",
                         parts: [
-                            { text: "Act as an elite Hollywood VFX Director and AI Video Prompt Architect. Analyze the provided image/video and craft an ultra-detailed, professional video generation prompt. The prompt MUST start with exactly 'Create a cinematic video'. You must construct a dense, single-paragraph prompt that seamlessly weaves together: 1. Subject & Temporal Motion (precise physical descriptions, fluid movements over time). 2. Advanced Camera Dynamics (e.g., shot on ARRI Alexa 65, 35mm lens, dynamic tracking shot, slow-motion push-in, drone sweep). 3. Complex Lighting & Atmosphere (e.g., volumetric fog, cinematic chiaroscuro, neon practicals, golden hour rim lighting). 4. Ultimate Visual Fidelity (e.g., 8k resolution, photorealistic, shallow depth of field, Kodak 35mm film stock). Do NOT include abstract concepts, thoughts, or audio. Focus 100% on concrete, visible, cinematic elements. Output ONLY the final, continuous paragraph without any intro, outro, or bullet points." },
+                            { text: `Act as a Master AI Video Prompt Engineer. Analyze this media. Create a flawless video generation prompt for cutting-edge models (Sora, Kling, Runway Gen-3). Target Style: "${style}". Target Motion: "${motion}". Break the analysis down into the exact requested JSON schema.` },
                             { inlineData: { mimeType: mimeType, data: base64Data } }
                         ]
-                    }]
+                    }],
+                    // Pro Engine: Forcing structured JSON output
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                masterPrompt: { type: "STRING", description: "The highly detailed main prompt. Must start with 'Create a video'. Include subject, environment, and action. Do not include camera specs here." },
+                                cameraAndLighting: { type: "STRING", description: "Technical specs: Camera model, lens, shot type, and lighting setup (e.g., Shot on ARRI Alexa 65, 35mm lens, rim lighting)." },
+                                motionTags: { type: "STRING", description: "Comma separated keywords defining the physical movement and temporal dynamics." },
+                                negativePrompt: { type: "STRING", description: "List of comma separated things to avoid based on the style." }
+                            },
+                            required: ["masterPrompt", "cameraAndLighting", "motionTags", "negativePrompt"]
+                        }
+                    }
                 };
 
                 const response = await fetchWithRetry(url, {
@@ -227,14 +306,23 @@
                 });
                 
                 const result = await response.json();
-                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text;
                 
-                promptText.textContent = text || "No prompt could be generated.";
+                if (!rawText) throw new Error("No response generated.");
+                
+                const data = JSON.parse(rawText);
+                
+                // Populate Dashboard
+                promptText.textContent = data.masterPrompt;
+                cameraText.textContent = data.cameraAndLighting;
+                motionText.textContent = data.motionTags;
+                negativeText.textContent = data.negativePrompt;
+                
                 resultCard.classList.remove('hidden');
             } catch (err) {
                 console.error('API Error:', err);
-                promptText.textContent = "Error: Network issue or the file size is too large for the API payload limit. Please try again or use a smaller file.";
-                resultCard.classList.remove('hidden');
+                errorBanner.innerHTML = `<span class="font-bold">API Error:</span> ${err.message}`;
+                errorBanner.classList.remove('hidden');
             } finally {
                 loader.classList.add('hidden');
             }
@@ -244,7 +332,6 @@
         dropZone.onclick = () => fileInput.click();
         fileInput.onchange = (e) => e.target.files[0] && processFile(e.target.files[0]);
         
-        // This works perfectly in all environments as long as the user initiates the shortcut via keyboard
         window.onpaste = (e) => {
             const file = e.clipboardData?.items[0]?.getAsFile();
             if (file && (file.type.startsWith('image/') || file.type.startsWith('video/'))) {
@@ -254,30 +341,32 @@
 
         resetBtn.onclick = () => {
             dropZone.classList.remove('hidden');
+            controls.classList.remove('hidden');
             previewContainer.classList.add('hidden');
             resetBtn.classList.add('hidden');
             resultCard.classList.add('hidden');
+            errorBanner.classList.add('hidden');
             mediaPreview.innerHTML = '';
-            promptText.textContent = '';
             fileInput.value = '';
         };
 
         copyBtn.onclick = () => {
-            // Using execCommand for better iFrame compatibility
+            // Format the final "Pro" string for the user to copy
+            const finalString = `${promptText.textContent}\n\nTechnical: ${cameraText.textContent}\nMotion: ${motionText.textContent}\n--no ${negativeText.textContent}`;
+            
             const textArea = document.createElement("textarea");
-            textArea.value = promptText.textContent;
+            textArea.value = finalString;
             document.body.appendChild(textArea);
             textArea.select();
             
             try {
                 document.execCommand('copy');
                 const span = copyBtn.querySelector('span');
-                span.textContent = 'Copied';
-                setTimeout(() => span.textContent = 'Copy', 2000);
+                span.textContent = 'PROMPT COPIED!';
+                setTimeout(() => span.textContent = 'Copy Full Prompt', 2500);
             } catch (err) {
                 console.error('Copy failed', err);
             }
-            
             document.body.removeChild(textArea);
         };
     </script>
