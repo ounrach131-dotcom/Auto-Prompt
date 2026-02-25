@@ -34,6 +34,15 @@
     <main class="space-y-6">
         <!-- AI Controls (Pre-generation) -->
         <div id="controls" class="grid grid-cols-2 gap-4 animate-fade-in">
+            <!-- API Key Input for External Hosting -->
+            <div class="col-span-2 space-y-1.5">
+                <label class="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
+                    <span>Gemini API Key</span>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-400 hover:text-indigo-300 capitalize normal-case text-xs transition-colors">Get Free Key &rarr;</a>
+                </label>
+                <input type="password" id="apiKeyInput" placeholder="Paste your API key here to use on GitHub Pages..." class="w-full bg-slate-900 border border-slate-800 text-sm rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder-slate-600 font-mono transition-all">
+            </div>
+
             <div class="space-y-1.5">
                 <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Visual Style</label>
                 <select id="styleSelect" class="w-full bg-slate-900 border border-slate-800 text-sm rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer">
@@ -84,7 +93,7 @@
             </div>
 
             <!-- Error Banner -->
-            <div id="errorBanner" class="hidden p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm"></div>
+            <div id="errorBanner" class="hidden p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm break-words"></div>
 
             <!-- Pro Dashboard -->
             <div id="resultCard" class="hidden space-y-4">
@@ -144,6 +153,7 @@
         const resultCard = document.getElementById('resultCard');
         const errorBanner = document.getElementById('errorBanner');
         const resetBtn = document.getElementById('resetBtn');
+        const apiKeyInput = document.getElementById('apiKeyInput');
         
         // Output Elements
         const promptText = document.getElementById('promptText');
@@ -158,6 +168,15 @@
 
         // API Setup
         const apiKey = ""; 
+
+        // Load saved API Key from localStorage
+        const savedKey = localStorage.getItem('autoPromptApiKey');
+        if (savedKey) apiKeyInput.value = savedKey;
+
+        // Save API Key when user types it
+        apiKeyInput.addEventListener('input', (e) => {
+            localStorage.setItem('autoPromptApiKey', e.target.value.trim());
+        });
 
         // Exponential backoff fetch function with precise error handling
         async function fetchWithRetry(url, options) {
@@ -235,6 +254,18 @@
         // ----------------------------------------------------------------------
 
         async function processFile(file) {
+            // First check if a key exists if not running in the internal preview
+            const activeKey = apiKeyInput.value.trim() || apiKey;
+            if (!activeKey) {
+                errorBanner.innerHTML = `<span class="font-bold text-red-400">Missing API Key:</span> You are hosting this app externally. Please paste your Google Gemini API key in the input box above to continue.`;
+                errorBanner.classList.remove('hidden');
+                apiKeyInput.focus();
+                // Add a gentle shake animation to draw attention
+                apiKeyInput.classList.add('animate-pulse', 'border-red-500');
+                setTimeout(() => apiKeyInput.classList.remove('animate-pulse', 'border-red-500'), 2000);
+                return;
+            }
+
             dropZone.classList.add('hidden');
             controls.classList.add('hidden');
             previewContainer.classList.remove('hidden');
@@ -259,7 +290,7 @@
                 } else {
                     throw new Error("Unsupported file type");
                 }
-                generatePrompt(base64Data, mimeType);
+                generatePrompt(base64Data, mimeType, activeKey);
             } catch (err) {
                 console.error("Compression Error:", err);
                 errorBanner.textContent = "Error processing media. Please try a standard PNG, JPG, or MP4 file.";
@@ -268,9 +299,9 @@
             }
         }
 
-        async function generatePrompt(base64Data, mimeType) {
+        async function generatePrompt(base64Data, mimeType, activeKey) {
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${activeKey}`;
                 
                 const style = styleSelect.value;
                 const motion = motionSelect.value;
@@ -334,21 +365,20 @@
         
         // --- Robust Clipboard Event Listener ---
         document.addEventListener('paste', (e) => {
-            // Ensure clipboard has data
+            if (e.target.tagName === 'INPUT') return; // Don't trigger file paste if user is pasting API Key
+
             if (!e.clipboardData || !e.clipboardData.items) return;
             
             const items = e.clipboardData.items;
             
-            // Loop through all items in the clipboard to find an image or video
-            // (Sometimes the browser puts the image URL as index 0, and the actual image file as index 1)
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
                 if (item.type.startsWith('image/') || item.type.startsWith('video/')) {
                     const file = item.getAsFile();
                     if (file) {
-                        e.preventDefault(); // Stop default browser paste behavior
+                        e.preventDefault(); 
                         processFile(file);
-                        return; // Stop searching once we find a valid media file
+                        return; 
                     }
                 }
             }
