@@ -24,11 +24,8 @@
                 <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
             </div>
-            <p class="text-xs font-bold text-gray-400 uppercase tracking-tight mb-4">Give me a file to create a video</p>
-            <button id="pasteBtn" type="button" class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 hover:text-black transition-colors shadow-sm">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                <span>Paste from Clipboard (Ctrl+V)</span>
-            </button>
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-tight mb-1">Give me a file to create a video</p>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">(Or press Ctrl+V to paste)</p>
             <input type="file" id="fileInput" accept="image/*,video/*" class="hidden">
         </div>
 
@@ -61,10 +58,28 @@
         const promptText = document.getElementById('promptText');
         const copyBtn = document.getElementById('copyBtn');
         const resetBtn = document.getElementById('resetBtn');
-        const pasteBtn = document.getElementById('pasteBtn');
 
         // Note: The execution environment provides the key at runtime dynamically here.
         const apiKey = ""; 
+
+        // Exponential backoff fetch function
+        async function fetchWithRetry(url, options) {
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < delays.length; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) return response;
+                    
+                    if (i === delays.length - 1) {
+                        throw new Error(`HTTP Error: ${response.status} - ${response.statusText}`);
+                    }
+                } catch (err) {
+                    if (i === delays.length - 1) throw err;
+                }
+                // Wait for the specified delay before retrying
+                await new Promise(resolve => setTimeout(resolve, delays[i]));
+            }
+        }
 
         async function generatePrompt(base64Data, mimeType) {
             loader.classList.remove('hidden');
@@ -77,19 +92,17 @@
                     contents: [{
                         role: "user",
                         parts: [
-                            { text: "Act as a Master AI Video Prompt Engineer. Analyze the provided content and craft a highly detailed, professional cinematic video generation prompt (optimized for cutting-edge models). The prompt MUST start with exactly 'Create a video'. Structure your description seamlessly incorporating: 1. Main Subject & Fluid Action (what is happening in rich detail). 2. Environment & Atmosphere (background, mood, weather). 3. Camera Dynamics & Angle (e.g., dynamic tracking shot, sweeping drone reveal, extreme close-up, anamorphic lens). 4. Cinematic Lighting & Color Grading (e.g., volumetric lighting, moody chiaroscuro, golden hour glow). 5. Visual Fidelity (e.g., 8k, photorealistic, cinematic masterpiece). Write this as a single, flowing, highly descriptive paragraph. Output ONLY the final prompt text without any conversational filler, prefixes, or bullet points." },
+                            { text: "Act as an elite Hollywood VFX Director and AI Video Prompt Architect. Analyze the provided image/video and craft an ultra-detailed, professional video generation prompt. The prompt MUST start with exactly 'Create a cinematic video'. You must construct a dense, single-paragraph prompt that seamlessly weaves together: 1. Subject & Temporal Motion (precise physical descriptions, fluid movements over time). 2. Advanced Camera Dynamics (e.g., shot on ARRI Alexa 65, 35mm lens, dynamic tracking shot, slow-motion push-in, drone sweep). 3. Complex Lighting & Atmosphere (e.g., volumetric fog, cinematic chiaroscuro, neon practicals, golden hour rim lighting). 4. Ultimate Visual Fidelity (e.g., 8k resolution, photorealistic, shallow depth of field, Kodak 35mm film stock). Do NOT include abstract concepts, thoughts, or audio. Focus 100% on concrete, visible, cinematic elements. Output ONLY the final, continuous paragraph without any intro, outro, or bullet points." },
                             { inlineData: { mimeType: mimeType, data: base64Data } }
                         ]
                     }]
                 };
 
-                const response = await fetch(url, {
+                const response = await fetchWithRetry(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
-                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 
                 const result = await response.json();
                 const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -97,8 +110,8 @@
                 promptText.textContent = text || "No prompt could be generated.";
                 resultCard.classList.remove('hidden');
             } catch (err) {
-                console.error(err);
-                promptText.textContent = "Error: Check your connection or try a smaller file.";
+                console.error('API Error:', err);
+                promptText.textContent = "Error: Network issue or the file size is too large for the API payload limit. Please try again or use a smaller file.";
                 resultCard.classList.remove('hidden');
             } finally {
                 loader.classList.add('hidden');
@@ -106,6 +119,24 @@
         }
 
         function processFile(file) {
+            // Check file size (limit to 5MB to avoid base64 payload issues)
+            const MAX_FILE_SIZE_MB = 5;
+            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                dropZone.classList.add('hidden');
+                previewContainer.classList.remove('hidden');
+                resetBtn.classList.remove('hidden');
+                
+                mediaPreview.innerHTML = `
+                    <div class="w-full h-full flex flex-col items-center justify-center bg-red-50 text-red-600 p-6 text-center">
+                        <svg class="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        <span class="font-bold">File Too Large</span>
+                        <span class="text-sm mt-1">Please use a file under ${MAX_FILE_SIZE_MB}MB.</span>
+                    </div>`;
+                promptText.textContent = "Error: File exceeds the 5MB size limit. The API cannot process base64 payloads larger than this.";
+                resultCard.classList.remove('hidden');
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = (e) => {
                 const url = e.target.result;
@@ -130,35 +161,6 @@
         dropZone.onclick = () => fileInput.click();
         fileInput.onchange = (e) => e.target.files[0] && processFile(e.target.files[0]);
         
-        pasteBtn.onclick = async (e) => {
-            e.stopPropagation(); // Prevent opening the standard file dialog when clicking the paste button
-            const originalText = pasteBtn.innerHTML;
-            
-            // Try to focus the window first so keyboard shortcuts work immediately after
-            window.focus();
-
-            try {
-                // This API throws a NotAllowedError in cross-origin iframes without explicit clipboard-read permission
-                const clipboardItems = await navigator.clipboard.read();
-                for (const clipboardItem of clipboardItems) {
-                    const validTypes = clipboardItem.types.filter(t => t.startsWith('image/') || t.startsWith('video/'));
-                    if (validTypes.length > 0) {
-                        const blob = await clipboardItem.getType(validTypes[0]);
-                        const file = new File([blob], 'pasted_media', { type: validTypes[0] });
-                        processFile(file);
-                        return;
-                    }
-                }
-                pasteBtn.innerHTML = '<span class="text-red-500">No media found</span>';
-                setTimeout(() => pasteBtn.innerHTML = originalText, 2000);
-            } catch (err) {
-                // Gracefully handle iframe permission blocking by directing the user to use their keyboard
-                console.warn('Clipboard API is restricted by the environment. Instructing user to use keyboard shortcut.', err);
-                pasteBtn.innerHTML = '<span class="text-amber-600 font-bold">Please press Ctrl+V to paste</span>';
-                setTimeout(() => pasteBtn.innerHTML = originalText, 4000);
-            }
-        };
-
         // This works perfectly in all environments as long as the user initiates the shortcut via keyboard
         window.onpaste = (e) => {
             const file = e.clipboardData?.items[0]?.getAsFile();
