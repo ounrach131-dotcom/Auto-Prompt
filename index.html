@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoPrompt Standalone</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-white text-black font-sans p-4 md:p-8 max-w-xl mx-auto">
+    <header class="flex items-center justify-between mb-8">
+        <div class="flex items-center gap-2">
+            <!-- Zap Icon -->
+            <svg class="w-5 h-5 fill-black" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <h1 class="text-lg font-bold">AutoPrompt</h1>
+        </div>
+        <button id="resetBtn" class="hidden text-xs font-bold text-gray-400 hover:text-black uppercase tracking-tighter">Reset</button>
+    </header>
+
+    <main class="space-y-6">
+        <!-- Upload/Drop Zone -->
+        <div id="dropZone" class="aspect-video rounded-xl border-2 border-dashed border-gray-100 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors">
+            <div class="flex gap-3 mb-2">
+                <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </div>
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-tight mb-4">Give me a file to create a video</p>
+            <button id="pasteBtn" type="button" class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 hover:text-black transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                <span>Paste from Clipboard (Ctrl+V)</span>
+            </button>
+            <input type="file" id="fileInput" accept="image/*,video/*" class="hidden">
+        </div>
+
+        <!-- Preview & Result Area -->
+        <div id="previewContainer" class="hidden space-y-4">
+            <div class="relative aspect-video rounded-xl overflow-hidden bg-gray-100">
+                <div id="mediaPreview" class="w-full h-full"></div>
+                <!-- Fast Loader -->
+                <div id="loader" class="hidden absolute inset-0 bg-white/40 backdrop-blur-[2px] flex items-center justify-center">
+                    <div class="text-[10px] font-black tracking-[0.2em] animate-pulse">GENERATING...</div>
+                </div>
+            </div>
+            <div id="resultCard" class="hidden p-5 bg-gray-50 rounded-xl border border-gray-100">
+                <p id="promptText" class="text-sm leading-relaxed mb-4"></p>
+                <button id="copyBtn" class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-black transition-colors">
+                    <span>Copy</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // DOM Elements
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const mediaPreview = document.getElementById('mediaPreview');
+        const loader = document.getElementById('loader');
+        const resultCard = document.getElementById('resultCard');
+        const promptText = document.getElementById('promptText');
+        const copyBtn = document.getElementById('copyBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const pasteBtn = document.getElementById('pasteBtn');
+
+        // Note: The execution environment provides the key at runtime dynamically here.
+        const apiKey = ""; 
+
+        async function generatePrompt(base64Data, mimeType) {
+            loader.classList.remove('hidden');
+            resultCard.classList.add('hidden');
+            
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [
+                            { text: "Act as a Master AI Video Prompt Engineer. Analyze the provided content and craft a highly detailed, professional cinematic video generation prompt (optimized for cutting-edge models). The prompt MUST start with exactly 'Create a video'. Structure your description seamlessly incorporating: 1. Main Subject & Fluid Action (what is happening in rich detail). 2. Environment & Atmosphere (background, mood, weather). 3. Camera Dynamics & Angle (e.g., dynamic tracking shot, sweeping drone reveal, extreme close-up, anamorphic lens). 4. Cinematic Lighting & Color Grading (e.g., volumetric lighting, moody chiaroscuro, golden hour glow). 5. Visual Fidelity (e.g., 8k, photorealistic, cinematic masterpiece). Write this as a single, flowing, highly descriptive paragraph. Output ONLY the final prompt text without any conversational filler, prefixes, or bullet points." },
+                            { inlineData: { mimeType: mimeType, data: base64Data } }
+                        ]
+                    }]
+                };
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                promptText.textContent = text || "No prompt could be generated.";
+                resultCard.classList.remove('hidden');
+            } catch (err) {
+                console.error(err);
+                promptText.textContent = "Error: Check your connection or try a smaller file.";
+                resultCard.classList.remove('hidden');
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function processFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const url = e.target.result;
+                const base64 = url.split(',')[1];
+                
+                dropZone.classList.add('hidden');
+                previewContainer.classList.remove('hidden');
+                resetBtn.classList.remove('hidden');
+                
+                if (file.type.startsWith('video')) {
+                    mediaPreview.innerHTML = `<video src="${url}" class="w-full h-full object-cover" autoPlay muted loop></video>`;
+                } else {
+                    mediaPreview.innerHTML = `<img src="${url}" class="w-full h-full object-cover">`;
+                }
+                
+                generatePrompt(base64, file.type);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Event Listeners
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => e.target.files[0] && processFile(e.target.files[0]);
+        
+        pasteBtn.onclick = async (e) => {
+            e.stopPropagation(); // Prevent opening the standard file dialog when clicking the paste button
+            const originalText = pasteBtn.innerHTML;
+            
+            // Try to focus the window first so keyboard shortcuts work immediately after
+            window.focus();
+
+            try {
+                // This API throws a NotAllowedError in cross-origin iframes without explicit clipboard-read permission
+                const clipboardItems = await navigator.clipboard.read();
+                for (const clipboardItem of clipboardItems) {
+                    const validTypes = clipboardItem.types.filter(t => t.startsWith('image/') || t.startsWith('video/'));
+                    if (validTypes.length > 0) {
+                        const blob = await clipboardItem.getType(validTypes[0]);
+                        const file = new File([blob], 'pasted_media', { type: validTypes[0] });
+                        processFile(file);
+                        return;
+                    }
+                }
+                pasteBtn.innerHTML = '<span class="text-red-500">No media found</span>';
+                setTimeout(() => pasteBtn.innerHTML = originalText, 2000);
+            } catch (err) {
+                // Gracefully handle iframe permission blocking by directing the user to use their keyboard
+                console.warn('Clipboard API is restricted by the environment. Instructing user to use keyboard shortcut.', err);
+                pasteBtn.innerHTML = '<span class="text-amber-600 font-bold">Please press Ctrl+V to paste</span>';
+                setTimeout(() => pasteBtn.innerHTML = originalText, 4000);
+            }
+        };
+
+        // This works perfectly in all environments as long as the user initiates the shortcut via keyboard
+        window.onpaste = (e) => {
+            const file = e.clipboardData?.items[0]?.getAsFile();
+            if (file && (file.type.startsWith('image/') || file.type.startsWith('video/'))) {
+                processFile(file);
+            }
+        };
+
+        resetBtn.onclick = () => {
+            dropZone.classList.remove('hidden');
+            previewContainer.classList.add('hidden');
+            resetBtn.classList.add('hidden');
+            mediaPreview.innerHTML = '';
+            promptText.textContent = '';
+            fileInput.value = '';
+        };
+
+        copyBtn.onclick = () => {
+            // Using execCommand for better iFrame compatibility
+            const textArea = document.createElement("textarea");
+            textArea.value = promptText.textContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                const span = copyBtn.querySelector('span');
+                span.textContent = 'Copied';
+                setTimeout(() => span.textContent = 'Copy', 2000);
+            } catch (err) {
+                console.error('Copy failed', err);
+            }
+            
+            document.body.removeChild(textArea);
+        };
+    </script>
+</body>
+</html>
